@@ -133,3 +133,125 @@ def status():
     console.print(f"📥 Inbox: {inbox}")
     console.print(f"📤 Outbox: {outbox}")
     console.print(f"✅ Verified: {verified}\n")
+
+@cli.command()
+@click.option('--keystore', required=True, type=click.Path(exists=True), help='Path to keystore')
+@click.option('--to', required=True, help='Recipient address')
+@click.option('--value', required=True, help='Amount to send')
+@click.option('--nonce', required=True, type=int, help='Transaction nonce')
+@click.option('--data-hex', default='', help='Optional data payload')
+def sign(keystore, to, value, nonce, data_hex):
+    """Sign a transaction and save to outbox."""
+    from app.crypto.keystore import KeyStore
+    from app.transaction.models import Transaction
+    from app.transaction.signer import Signer
+    from datetime import datetime
+    import json
+    
+    try:
+        # Load keystore to get from address
+        with open(keystore) as f:
+            ks_data = json.load(f)
+        from_address = ks_data['address']
+        
+        # Show transaction preview
+        console.print("\n📝 [bold cyan]Transaction Preview[/bold cyan]")
+        console.print(f"From:  {from_address}")
+        console.print(f"To:    {to}")
+        console.print(f"Value: {value}")
+        console.print(f"Nonce: {nonce}")
+        if data_hex:
+            console.print(f"Data:  {data_hex[:40]}...")
+        console.print()
+        
+        # Confirm
+        if not click.confirm("Sign this transaction?", default=True):
+            console.print("[yellow]Cancelled.[/yellow]")
+            return
+        
+        # Get passphrase
+        passphrase = getpass("Keystore passphrase: ")
+        
+        # Load private key
+        console.print("\n[cyan]⏳ Loading keystore...[/cyan]")
+        signing_key = KeyStore.load(Path(keystore), passphrase)
+        
+        # Create transaction
+        tx = Transaction(
+            from_address=from_address,
+            to=to,
+            value=value,
+            nonce=nonce,
+            data_hex=data_hex
+        )
+        
+        # Sign
+        console.print("[cyan]⏳ Signing transaction...[/cyan]")
+        signed_tx = Signer.sign(signing_key, tx)
+        
+        # Save to outbox
+        timestamp = datetime.utcnow().strftime("%Y%m%d_%H%M%S")
+        filename = f"tx_{timestamp}_{nonce}.json"
+        filepath = Path("outbox") / filename
+        
+        with open(filepath, 'w') as f:
+            json.dump(signed_tx.to_dict(), f, indent=2)
+        
+        console.print()
+        show_success("Transaction signed!")
+        console.print(f"📤 Saved to: [cyan]{filepath}[/cyan]\n")
+        
+    except ValueError as e:
+        show_error(f"Incorrect passphrase or corrupted keystore")
+        sys.exit(1)
+    except Exception as e:
+        show_error(str(e))
+        sys.exit(1)
+@cli.command()
+@click.option('--path', required=True, type=click.Path(exists=True), help='Path to transaction file')
+def recv(path):
+    """Verify a received transaction."""
+    from app.transaction.models import SignedTransaction
+    from app.transaction.verifier import Verifier
+    import json
+    import shutil
+    
+    console.print("\n✅ [bold cyan]Verifying Transaction[/bold cyan]\n")
+    
+    try:
+        # Load transaction
+        with open(path) as f:
+            data = json.load(f)
+        
+        signed_tx = SignedTransaction.from_dict(data)
+        
+        # Verify
+        console.print("[cyan]⏳ Verifying signature...[/cyan]")
+        result = Verifier.verify(signed_tx)
+        
+        console.print()
+        
+        if result['valid']:
+            console.print("[bold green]✅ VALID TRANSACTION[/bold green]\n")
+            
+            # Show details
+            tx = signed_tx.tx
+            console.print(f"From:  {tx.from_address}")
+            console.print(f"To:    {tx.to}")
+            console.print(f"Value: {tx.value}")
+            console.print(f"Nonce: {tx.nonce}")
+            console.print(f"Time:  {tx.timestamp}")
+            console.print()
+            
+            # Move to verified
+            verified_path = Path("verified") / Path(path).name
+            shutil.move(path, verified_path)
+            console.print(f"📁 Moved to: [cyan]{verified_path}[/cyan]\n")
+            
+        else:
+            console.print(f"[bold red]❌ INVALID TRANSACTION[/bold red]")
+            console.print(f"Reason: {result['reason']}\n")
+        
+    except Exception as e:
+        show_error(str(e))
+        sys.exit(1)
