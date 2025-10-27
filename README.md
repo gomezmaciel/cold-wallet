@@ -188,7 +188,7 @@ cold-wallet/
 ## 👥 Equipo
 
 - **García Gonzales Alejandro**
-- **Gómez Maciel Viridiana** - Criptografía y Desarrollo
+- **Gómez Maciel Viridiana** 
 - **Pérez del Angel Joaquín Eduardo**
 - **Romero Pizano Christian Gustavo**
 
