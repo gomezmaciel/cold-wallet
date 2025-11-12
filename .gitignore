@@ -31,3 +31,5 @@ ENV/
 # Sistema
 .DS_Store
 Thumbs.db
+docs/
+keystores/
