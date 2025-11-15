@@ -262,3 +262,8 @@ Universidad Nacional Autónoma de México
 
 Para más detalles técnicos, consulta:
 - `docs/technical_report.md` - Reporte técnico completo del proyecto
+
+## 📄 Documentación Oficial
+
+- **Reporte Técnico Completo**: [Ver en Google Docs](https://docs.google.com/document/d/1mhaYtxDe4PEVh3EeLjX6djPUoXL0gRWbXjoaH6qr31E/edit?usp=sharing)
+- **Documentación Local**: Ver `docs/technical_report.md`
